@@ -10,7 +10,7 @@ class SteerLimitParams:
     if CP.carFingerprint in [CAR.SONATA, CAR.PALISADE, CAR.SANTA_FE, CAR.VELOSTER, CAR.GENESIS_G70]:
       self.STEER_MAX = 384
     else:
-      self.STEER_MAX = 409
+      self.STEER_MAX = 255
     self.STEER_DELTA_UP = 3
     self.STEER_DELTA_DOWN = 7
     self.STEER_DRIVER_ALLOWANCE = 50
