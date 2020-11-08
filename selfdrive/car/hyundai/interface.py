@@ -155,15 +155,18 @@ class CarInterface(CarInterfaceBase):
 
     # Genesis
     elif candidate == CAR.GENESIS_G70:
-      ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGain = 2.5
-      ret.lateralTuning.indi.outerLoopGain = 3.5
-      ret.lateralTuning.indi.timeConstant = 1.4
-      ret.lateralTuning.indi.actuatorEffectiveness = 1.8
-      ret.steerActuatorDelay = 0.1
-      ret.mass = 1640.0 + STD_CARGO_KG
-      ret.wheelbase = 2.84
-      ret.steerRatio = 13.56
+      ret.lateralTuning.init('indi') # TODO: BPs for city speeds - this tuning is great on the highway but a bit lazy in town
+      ret.lateralTuning.indi.innerLoopGain = 2.4  # higher values steer more
+      ret.lateralTuning.indi.outerLoopGain = 3.0  # higher values steer more
+      ret.lateralTuning.indi.timeConstant = 1.0  # lower values steer more
+      ret.lateralTuning.indi.actuatorEffectiveness = 2.0  # lower values steer more
+      ret.steerActuatorDelay = 0.4 # 0.08 stock
+      ret.steerLimitTimer = 0.4 # down from 0.4
+      tire_stiffness_factor = 1.0 
+      ret.steerRateCost = 1.0
+      ret.mass = 1825. + STD_CARGO_KG
+      ret.wheelbase = 2.906
+      ret.steerRatio = 14.4
     elif candidate == CAR.GENESIS_G80:
       ret.lateralTuning.pid.kf = 0.00005
       ret.mass = 2060. + STD_CARGO_KG
