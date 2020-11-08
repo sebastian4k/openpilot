@@ -102,7 +102,7 @@ static int hyundai_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
                                  hyundai_get_checksum, hyundai_compute_checksum,
                                  hyundai_get_counter);
 
-  bool unsafe_allow_gas = unsafe_mode & UNSAFE_ENABLE_DISENGAGE_ON_GAS;
+  bool unsafe_allow_gas = unsafe_mode & UNSAFE_DISABLE_DISENGAGE_ON_GAS;
 
   int addr = GET_ADDR(to_push);
   int bus = GET_BUS(to_push);
@@ -147,7 +147,7 @@ static int hyundai_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       if (!cruise_engaged) {
         controls_allowed = 0;
       }
-      cruise_engaged_prev = gas_pressed;
+      cruise_engaged_prev = cruise_engaged;
     }
     if (addr == 1056 && !OP_SCC_live && (bus != 1 || !hyundai_LCAN_on_bus1)) { // for cars without long control
       hyundai_has_scc = true;
@@ -159,7 +159,7 @@ static int hyundai_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       if (!cruise_engaged) {
         controls_allowed = 0;
       }
-      cruise_engaged_prev = gas_pressed;
+      cruise_engaged_prev = cruise_engaged;
     }
 
     // cruise control for car without SCC
@@ -172,7 +172,7 @@ static int hyundai_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       if (!cruise_engaged) {
         controls_allowed = 0;
       }
-      cruise_engaged_prev = gas_pressed
+      cruise_engaged_prev = cruise_engaged;
     }
     // engage for Cruise control disabled car
     if (addr == 1265 && bus == 0 && OP_SCC_live && !car_SCC_live) {
@@ -186,7 +186,7 @@ static int hyundai_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       if (cruise_button == 4) {
         controls_allowed = 0;
       }
-      cruise_engaged_prev = gas_pressed;
+      cruise_engaged_prev = cruise_button;
     }
     // exit controls on rising edge of gas press for cars with long control
     if (addr == 608 && OP_SCC_live && bus == 0) {
