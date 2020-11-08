@@ -1,233 +1,89 @@
-#!/usr/bin/env python3
-from cereal import car
-from selfdrive.config import Conversions as CV
-from selfdrive.car.hyundai.values import CAR
-from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, gen_empty_fingerprint
-from selfdrive.car.interfaces import CarInterfaceBase
+import crcmod
+from selfdrive.car.hyundai.values import CAR, CHECKSUM
 
-class CarInterface(CarInterfaceBase):
-
-  @staticmethod
-  def compute_gb(accel, speed):
-    return float(accel) / 3.0
-
-  @staticmethod
-  def get_params(candidate, fingerprint=gen_empty_fingerprint(), car_fw=[]):  # pylint: disable=dangerous-default-value
-    ret = CarInterfaceBase.get_std_params(candidate, fingerprint)
-
-    ret.carName = "hyundai"
-    ret.safetyModel = car.CarParams.SafetyModel.hyundai
-    ret.radarOffCan = True
-
-    # Most Hyundai car ports are community features for now
-    ret.communityFeature = candidate not in [CAR.SONATA, CAR.PALISADE]
-
-    ret.steerActuatorDelay = 0.1  # Default delay
-    ret.steerRateCost = 0.5
-    ret.steerLimitTimer = 0.4
-    tire_stiffness_factor = 1.
-
-    if candidate == CAR.SANTA_FE:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 3982. * CV.LB_TO_KG + STD_CARGO_KG
-      ret.wheelbase = 2.766
-      # Values from optimizer
-      ret.steerRatio = 16.55  # 13.8 is spec end-to-end
-      tire_stiffness_factor = 0.82
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[9., 22.], [9., 22.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.2, 0.35], [0.05, 0.09]]
-    elif candidate == CAR.SONATA:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 1513. + STD_CARGO_KG
-      ret.wheelbase = 2.84
-      ret.steerRatio = 13.27 * 1.15   # 15% higher at the center seems reasonable
-      tire_stiffness_factor = 0.65
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate == CAR.SONATA_2019:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 4497. * CV.LB_TO_KG
-      ret.wheelbase = 2.804
-      ret.steerRatio = 13.27 * 1.15   # 15% higher at the center seems reasonable
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate == CAR.PALISADE:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 1999. + STD_CARGO_KG
-      ret.wheelbase = 2.90
-      ret.steerRatio = 13.75 * 1.15
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate in [CAR.ELANTRA, CAR.ELANTRA_GT_I30]:
-      ret.lateralTuning.pid.kf = 0.00006
-      ret.mass = 1275. + STD_CARGO_KG
-      ret.wheelbase = 2.7
-      ret.steerRatio = 15.4            # 14 is Stock | Settled Params Learner values are steerRatio: 15.401566348670535
-      tire_stiffness_factor = 0.385    # stiffnessFactor settled on 1.0081302973865127
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-      ret.minSteerSpeed = 32 * CV.MPH_TO_MS
-    elif candidate == CAR.HYUNDAI_GENESIS:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 2060. + STD_CARGO_KG
-      ret.wheelbase = 3.01
-      ret.steerRatio = 16.5
-      ret.lateralTuning.init('indi')
-      ret.lateralTuning.indi.innerLoopGain = 3.5
-      ret.lateralTuning.indi.outerLoopGain = 2.0
-      ret.lateralTuning.indi.timeConstant = 1.4
-      ret.lateralTuning.indi.actuatorEffectiveness = 2.3
-      ret.minSteerSpeed = 60 * CV.KPH_TO_MS
-    elif candidate == CAR.KONA:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 1275. + STD_CARGO_KG
-      ret.wheelbase = 2.7
-      ret.steerRatio = 13.73 * 1.15  # Spec
-      tire_stiffness_factor = 0.385
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate == CAR.KONA_EV:
-      ret.lateralTuning.pid.kf = 0.00006
-      ret.mass = 1685. + STD_CARGO_KG
-      ret.wheelbase = 2.7
-      ret.steerRatio = 13.73  # Spec
-      tire_stiffness_factor = 0.385
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate in [CAR.IONIQ, CAR.IONIQ_EV_LTD]:
-      ret.lateralTuning.pid.kf = 0.00006
-      ret.mass = 1490. + STD_CARGO_KG   #weight per hyundai site https://www.hyundaiusa.com/ioniq-electric/specifications.aspx
-      ret.wheelbase = 2.7
-      ret.steerRatio = 13.73   #Spec
-      tire_stiffness_factor = 0.385
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-      ret.minSteerSpeed = 32 * CV.MPH_TO_MS
-    elif candidate == CAR.VELOSTER:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 3558. * CV.LB_TO_KG
-      ret.wheelbase = 2.80
-      ret.steerRatio = 13.75 * 1.15
-      tire_stiffness_factor = 0.5
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-
-    # Kia
-    elif candidate == CAR.KIA_SORENTO:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 1985. + STD_CARGO_KG
-      ret.wheelbase = 2.78
-      ret.steerRatio = 14.4 * 1.1   # 10% higher at the center seems reasonable
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate == CAR.KIA_NIRO_EV:
-      ret.lateralTuning.pid.kf = 0.00006
-      ret.mass = 1737. + STD_CARGO_KG
-      ret.wheelbase = 2.7
-      ret.steerRatio = 13.73  # Spec
-      tire_stiffness_factor = 0.385
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate in [CAR.KIA_OPTIMA, CAR.KIA_OPTIMA_H]:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 3558. * CV.LB_TO_KG
-      ret.wheelbase = 2.80
-      ret.steerRatio = 13.75
-      tire_stiffness_factor = 0.5
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-    elif candidate == CAR.KIA_STINGER:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 1825. + STD_CARGO_KG
-      ret.wheelbase = 2.78
-      ret.steerRatio = 14.4 * 1.15   # 15% higher at the center seems reasonable
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-
-    elif candidate == CAR.KIA_FORTE:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 3558. * CV.LB_TO_KG
-      ret.wheelbase = 2.80
-      ret.steerRatio = 13.75
-      tire_stiffness_factor = 0.5
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.25], [0.05]]
-
-    # Genesis
-    elif candidate == CAR.GENESIS_G70:
-      ret.lateralTuning.init('indi') # TODO: BPs for city speeds - this tuning is great on the highway but a bit lazy in town
-      ret.lateralTuning.indi.innerLoopGain = 2.4  # higher values steer more
-      ret.lateralTuning.indi.outerLoopGain = 3.0  # higher values steer more
-      ret.lateralTuning.indi.timeConstant = 1.0  # lower values steer more
-      ret.lateralTuning.indi.actuatorEffectiveness = 2.0  # lower values steer more
-      ret.steerActuatorDelay = 0.4 # 0.08 stock
-      ret.steerLimitTimer = 0.4 # down from 0.4
-      tire_stiffness_factor = 1.0 
-      ret.steerRateCost = 1.0
-      ret.mass = 1825. + STD_CARGO_KG
-      ret.wheelbase = 2.906
-      ret.steerRatio = 14.4
-    elif candidate == CAR.GENESIS_G80:
-      ret.lateralTuning.pid.kf = 0.00005
-      ret.mass = 2060. + STD_CARGO_KG
-      ret.wheelbase = 3.01
-      ret.steerRatio = 16.5
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.16], [0.01]]
-    elif candidate == CAR.GENESIS_G90:
-      ret.mass = 2200
-      ret.wheelbase = 3.15
-      ret.steerRatio = 12.069
-      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0.], [0.]]
-      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.16], [0.01]]
+hyundai_checksum = crcmod.mkCrcFun(0x11D, initCrc=0xFD, rev=False, xorOut=0xdf)
 
 
-    # these cars require a special panda safety mode due to missing counters and checksums in the messages
-    if candidate in [CAR.HYUNDAI_GENESIS, CAR.IONIQ_EV_LTD, CAR.IONIQ, CAR.KONA_EV, CAR.KIA_SORENTO, CAR.SONATA_2019,
-                     CAR.KIA_NIRO_EV, CAR.KIA_OPTIMA, CAR.VELOSTER, CAR.KIA_STINGER, CAR.GENESIS_G70]:
-      ret.safetyModel = car.CarParams.SafetyModel.hyundaiLegacy
+def create_lkas11(packer, frame, car_fingerprint, apply_steer, steer_req,
+                  lkas11, sys_warning, sys_state, enabled,
+                  left_lane, right_lane,
+                  left_lane_depart, right_lane_depart):
+  values = lkas11
+  values["CF_Lkas_LdwsSysState"] = sys_state
+  values["CF_Lkas_SysWarning"] = 3 if sys_warning else 0
+  values["CF_Lkas_LdwsLHWarning"] = left_lane_depart
+  values["CF_Lkas_LdwsRHWarning"] = right_lane_depart
+  values["CR_Lkas_StrToqReq"] = apply_steer
+  values["CF_Lkas_ActToi"] = steer_req
+  values["CF_Lkas_ToiFlt"] = 0
+  values["CF_Lkas_MsgCount"] = frame % 0x10
+  values["CF_Lkas_Chksum"] = 0
 
-    ret.centerToFront = ret.wheelbase * 0.4
+  if car_fingerprint in [CAR.SONATA, CAR.PALISADE]:
+    values["CF_Lkas_LdwsActivemode"] = int(left_lane) + (int(right_lane) << 1)
+    values["CF_Lkas_LdwsOpt_USM"] = 2
 
-    # TODO: get actual value, for now starting with reasonable value for
-    # civic and scaling by mass and wheelbase
-    ret.rotationalInertia = scale_rot_inertia(ret.mass, ret.wheelbase)
+    # FcwOpt_USM 5 = Orange blinking car + lanes
+    # FcwOpt_USM 4 = Orange car + lanes
+    # FcwOpt_USM 3 = Green blinking car + lanes
+    # FcwOpt_USM 2 = Green car + lanes
+    # FcwOpt_USM 1 = White car + lanes
+    # FcwOpt_USM 0 = No car + lanes
+    values["CF_Lkas_FcwOpt_USM"] = 2 if enabled else 1
 
-    # TODO: start from empirically derived lateral slip stiffness for the civic and scale by
-    # mass and CG position, so all cars will have approximately similar dyn behaviors
-    ret.tireStiffnessFront, ret.tireStiffnessRear = scale_tire_stiffness(ret.mass, ret.wheelbase, ret.centerToFront,
-                                                                         tire_stiffness_factor=tire_stiffness_factor)
+    # SysWarning 4 = keep hands on wheel
+    # SysWarning 5 = keep hands on wheel (red)
+    # SysWarning 6 = keep hands on wheel (red) + beep
+    # Note: the warning is hidden while the blinkers are on
+    values["CF_Lkas_SysWarning"] = 4 if sys_warning else 0
 
-    ret.enableCamera = True
+  elif car_fingerprint == CAR.HYUNDAI_GENESIS:
+    # This field is actually LdwsActivemode
+    # Genesis and Optima fault when forwarding while engaged
+    values["CF_Lkas_LdwsActivemode"] = 2
+  elif car_fingerprint == CAR.KIA_OPTIMA:
+    values["CF_Lkas_LdwsActivemode"] = 0
 
-    return ret
+  dat = packer.make_can_msg("LKAS11", 0, values)[2]
 
-  def update(self, c, can_strings):
-    self.cp.update_strings(can_strings)
-    self.cp_cam.update_strings(can_strings)
+  if car_fingerprint in CHECKSUM["crc8"]:
+    # CRC Checksum as seen on 2019 Hyundai Santa Fe
+    dat = dat[:6] + dat[7:8]
+    checksum = hyundai_checksum(dat)
+  elif car_fingerprint in CHECKSUM["6B"]:
+    # Checksum of first 6 Bytes, as seen on 2018 Kia Sorento
+    checksum = sum(dat[:6]) % 256
+  else:
+    # Checksum of first 6 Bytes and last Byte as seen on 2018 Kia Stinger
+    checksum = (sum(dat[:6]) + dat[7]) % 256
 
-    ret = self.CS.update(self.cp, self.cp_cam)
-    ret.canValid = self.cp.can_valid and self.cp_cam.can_valid
+  values["CF_Lkas_Chksum"] = checksum
 
-    events = self.create_common_events(ret)
-    #TODO: addd abs(self.CS.angle_steers) > 90 to 'steerTempUnavailable' event
+  return packer.make_can_msg("LKAS11", 0, values)
 
-    # low speed steer alert hysteresis logic (only for cars with steer cut off above 10 m/s)
-    if ret.vEgo < (self.CP.minSteerSpeed + 2.) and self.CP.minSteerSpeed > 10.:
-      self.low_speed_alert = True
-    if ret.vEgo > (self.CP.minSteerSpeed + 4.):
-      self.low_speed_alert = False
-    if self.low_speed_alert:
-      events.add(car.CarEvent.EventName.belowSteerSpeed)
 
-    ret.events = events.to_msg()
+def create_clu11(packer, frame, clu11, button):
+  values = clu11
+  values["CF_Clu_CruiseSwState"] = button
+  values["CF_Clu_AliveCnt1"] = frame % 0x10
+  return packer.make_can_msg("CLU11", 0, values)
 
-    self.CS.out = ret.as_reader()
-    return self.CS.out
 
-  def apply(self, c):
-    can_sends = self.CC.update(c.enabled, self.CS, self.frame, c.actuators,
-                               c.cruiseControl.cancel, c.hudControl.visualAlert, c.hudControl.leftLaneVisible,
-                               c.hudControl.rightLaneVisible, c.hudControl.leftLaneDepart, c.hudControl.rightLaneDepart)
-    self.frame += 1
-    return can_sends
+def create_lfa_mfa(packer, frame, enabled):
+  values = {
+    "ACTIVE": enabled,
+  }
+
+  # ACTIVE 1 = Green steering wheel icon
+
+  # LFA_USM 2 & 3 = LFA cancelled, fast loud beeping
+  # LFA_USM 0 & 1 = No mesage
+
+  # LFA_SysWarning 1 = "Switching to HDA", short beep
+  # LFA_SysWarning 2 = "Switching to Smart Cruise control", short beep
+  # LFA_SysWarning 3 =  LFA error
+
+  # ACTIVE2: nothing
+  # HDA_USM: nothing
+
+  return packer.make_can_msg("LFAHDA_MFC", 0, values)
