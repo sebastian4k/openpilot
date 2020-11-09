@@ -9,13 +9,13 @@
 #include "safety/safety_gm.h"
 #include "safety/safety_ford.h"
 #include "safety/safety_hyundai.h"
+#include "safety/safety_hyundai_community.h"
 #include "safety/safety_chrysler.h"
 #include "safety/safety_subaru.h"
 #include "safety/safety_mazda.h"
 #include "safety/safety_nissan.h"
 #include "safety/safety_volkswagen.h"
 #include "safety/safety_elm327.h"
-#include "safety/safety_hyundai_community.h"
 
 // from cereal.car.CarParams.SafetyModel
 #define SAFETY_SILENT 0U
@@ -40,6 +40,7 @@
 #define SAFETY_SUBARU_LEGACY 22U
 #define SAFETY_HYUNDAI_LEGACY 23U
 #define SAFETY_HYUNDAI_COMMUNITY 24U
+#define SAFETY_HYUNDAI_COMMUNITY_NONSCC 25U
 
 uint16_t current_safety_mode = SAFETY_SILENT;
 const safety_hooks *current_hooks = &nooutput_hooks;
@@ -138,7 +139,6 @@ void safety_tick(const safety_hooks *hooks) {
       hooks->addr_check[i].lagging = lagging;
       if (lagging) {
         controls_allowed = 0;
-        puts("  CAN msg ("); puth(hooks->addr_check[i].msg[hooks->addr_check[i].index].addr); puts(") lags: controls not allowed\n");
       }
     }
   }
@@ -159,9 +159,6 @@ bool is_msg_valid(AddrCheckStruct addr_list[], int index) {
     if ((!addr_list[index].valid_checksum) || (addr_list[index].wrong_counters >= MAX_WRONG_COUNTERS)) {
       valid = false;
       controls_allowed = 0;
-      int addrr = addr_list[index].msg[addr_list[index].index].addr;
-      if (!addr_list[index].valid_checksum){puts("  CAN msg ("); puth(addrr); puts(") checksum invalid: controls not allowed\n");}
-      else {puts("  CAN msg ("); puth(addrr); puts(") wrong counter: controls not allowed\n");}
     }
   }
   return valid;
@@ -209,14 +206,12 @@ void generic_rx_checks(bool stock_ecu_detected) {
   // exit controls on rising edge of gas press
   if (gas_pressed && !gas_pressed_prev && !(unsafe_mode & UNSAFE_DISABLE_DISENGAGE_ON_GAS)) {
     controls_allowed = 0;
-    puts("  gas pressed w/ long control: controls not allowed"); puts("\n");
   }
   gas_pressed_prev = gas_pressed;
 
   // exit controls on rising edge of brake press
   if (brake_pressed && (!brake_pressed_prev || vehicle_moving)) {
     controls_allowed = 0;
-    puts("  brake pressed w/ long control: controls not allowed"); puts("\n");
   }
   brake_pressed_prev = brake_pressed;
 
@@ -257,6 +252,7 @@ const safety_hook_config safety_hook_registry[] = {
   {SAFETY_NOOUTPUT, &nooutput_hooks},
   {SAFETY_HYUNDAI_LEGACY, &hyundai_legacy_hooks},
   {SAFETY_HYUNDAI_COMMUNITY, &hyundai_community_hooks},
+  {SAFETY_HYUNDAI_COMMUNITY_NONSCC, &hyundai_community_nonscc_hooks},
 #ifdef ALLOW_DEBUG
   {SAFETY_MAZDA, &mazda_hooks},
   {SAFETY_SUBARU_LEGACY, &subaru_legacy_hooks},
