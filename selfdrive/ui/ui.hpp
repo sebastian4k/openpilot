@@ -33,6 +33,7 @@
 #define COLOR_WHITE_ALPHA(x) nvgRGBA(255, 255, 255, x)
 #define COLOR_YELLOW nvgRGBA(218, 202, 37, 255)
 #define COLOR_RED nvgRGBA(201, 34, 49, 255)
+#define COLOR_RED_ALPHA(x) nvgRGBA(201, 34, 49, x)
 
 #define UI_BUF_COUNT 4
 
@@ -53,7 +54,7 @@ const int footer_h = 280;
 const Rect settings_btn = {50, 35, 200, 117};
 const Rect home_btn = {60, 1080 - 180 - 40, 180, 180};
 
-const int UI_FREQ = 20;   // Hz
+const int UI_FREQ = 20;   // Hzg
 
 const int MODEL_PATH_MAX_VERTICES_CNT = TRAJECTORY_SIZE*2;
 const int TRACK_POINTS_MAX_CNT = TRAJECTORY_SIZE*4;
