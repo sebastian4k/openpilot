@@ -54,7 +54,7 @@ const int footer_h = 280;
 const Rect settings_btn = {50, 35, 200, 117};
 const Rect home_btn = {60, 1080 - 180 - 40, 180, 180};
 
-const int UI_FREQ = 20;   // Hzg
+const int UI_FREQ = 20;   // Hz
 
 const int MODEL_PATH_MAX_VERTICES_CNT = TRAJECTORY_SIZE*2;
 const int TRACK_POINTS_MAX_CNT = TRAJECTORY_SIZE*4;
@@ -138,6 +138,7 @@ typedef struct UIScene {
   line right_road_edge;
   float max_distance;
   float lane_line_probs[4];
+  float road_edge_stds[2];
 
   // dp
   bool dpDashcam;
